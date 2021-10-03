@@ -1,17 +1,15 @@
-import fs from 'fs/promises';
 import path from 'path';
+import sharp from 'sharp';
 import {
   getArrayBuffer,
   getContentType,
   getFileName,
   getImageDimensions,
 } from './utils';
-import { closeImagePool, getImagePool } from './imagePool';
 import { Config } from './config';
 
-export type TransformOptions = Pick<
-  Config,
-  'formats' | 'widths' | 'outputDirectory'
+export type TransformOptions = Partial<
+  Pick<Config, 'formats' | 'widths' | 'outputDirectory'>
 >;
 
 export type TransformResults = {
@@ -23,7 +21,6 @@ export type ImageStats = {
   fileName: string;
   filePath: string;
   format: string;
-  optionsUsed: Record<string, any>;
   height: number;
   size: number;
   width: number;
@@ -33,59 +30,53 @@ export const transform = async (
   filePath: string,
   { formats, outputDirectory, widths = [null] }: TransformOptions
 ): Promise<TransformResults> => {
-  const imagePool = getImagePool();
+  const transformResults: TransformResults = {};
   const shouldWrite = Boolean(outputDirectory);
 
   const arrayBuffer = await getArrayBuffer(filePath);
-  const image = imagePool.ingestImage(arrayBuffer);
-  const { bitmap } = await image.decoded;
-
-  const transformResults: TransformResults = {};
-  const encodeOptions = Object.fromEntries(
-    formats.map((format) => [format, 'auto'])
-  );
+  const initialImage = await sharp(arrayBuffer);
+  const { format, width, height } = await sharp(arrayBuffer).metadata();
 
   for (const targetWidth of widths) {
-    const [w, h] = getImageDimensions(bitmap.width, bitmap.height, targetWidth);
+    const [newWidth, newHeight] = getImageDimensions(
+      width,
+      height,
+      targetWidth
+    );
+    const targetImage = initialImage.clone();
 
     if (targetWidth) {
-      await image.preprocess({
-        resize: { enabled: true, width: w, height: h },
-      });
+      await targetImage.resize({ width: newWidth, height: newHeight });
     }
 
-    await image.encode(encodeOptions);
+    for (const newFormat of formats || [format]) {
+      const newImage = await targetImage.clone().toFormat(newFormat);
 
-    for (const encodedImage of Object.values(image.encodedWith)) {
-      const { extension, size, binary, optionsUsed }: any = await encodedImage;
-      const newFileName = [
-        getFileName(filePath),
-        `-${targetWidth || w}`,
-        `.${extension}`,
-      ].join('');
+      const newFileName = `${getFileName(filePath)}-${newWidth}.${newFormat}`;
 
       const newFilePath = shouldWrite
         ? path.join(outputDirectory, newFileName)
         : undefined;
 
+      let newSize = 0;
+
       if (shouldWrite) {
-        await fs.writeFile(newFileName, binary);
+        await newImage.toFile(newFilePath).then(({ size }) => (newSize = size));
+      } else {
+        await newImage.toBuffer().then((buffer) => (newSize = buffer.length));
       }
 
-      (transformResults[extension] ??= []).push({
-        contentType: getContentType(extension),
+      (transformResults[newFormat] ??= []).push({
+        contentType: getContentType(newFormat),
         fileName: newFileName,
         filePath: newFilePath,
-        format: extension,
-        height: h,
-        optionsUsed,
-        size,
-        width: w,
+        format: newFormat,
+        height: newHeight,
+        size: newSize,
+        width: newWidth,
       });
     }
   }
-
-  closeImagePool();
 
   return transformResults;
 };

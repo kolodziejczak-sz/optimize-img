@@ -1,8 +1,10 @@
 const mimeTypes = {
-  jpg: 'image/jpeg',
-  webp: 'image/webp',
   avif: 'image/avif',
-  jxl: 'image/jxl',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  png: 'image/png',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
 };
 
 export const getContentType = (extension: string) => {

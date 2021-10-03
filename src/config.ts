@@ -1,4 +1,6 @@
-export type SupportedFormats = 'mozjpeg' | 'webp' | 'avif' | 'jxl';
+import { FormatEnum } from 'sharp';
+
+export type SupportedFormats = keyof FormatEnum;
 
 export interface Config {
   formats: SupportedFormats[];
@@ -13,7 +15,7 @@ export interface Config {
 export type ConfigFn = (existingConfig: Config) => Partial<Config>;
 
 let _config: Config = {
-  formats: ['mozjpeg', 'avif'],
+  formats: ['jpeg', 'avif'],
   outputDirectory: './public',
   widths: [null],
   cacheOptions: {
