@@ -1,2 +1,5 @@
-export { getConfig, configure } from './config';
-export { transform } from './transform';
+export { clearCache } from './cache';
+export { Config, configure, getConfig } from './config';
+export { ImageStats } from './getImageStats';
+export { TransformOptions, TransformResults } from './transform';
+export { transformImage, readImage } from './service';

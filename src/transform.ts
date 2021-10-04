@@ -4,9 +4,11 @@ import {
   getArrayBuffer,
   getContentType,
   getFileName,
+  getFormat,
   getImageDimensions,
 } from './utils';
 import { Config } from './config';
+import { ImageStats } from './getImageStats';
 
 export type TransformOptions = Partial<
   Pick<Config, 'formats' | 'widths' | 'outputDirectory'>
@@ -16,26 +18,19 @@ export type TransformResults = {
   [format: string]: ImageStats[];
 };
 
-export type ImageStats = {
-  contentType: string;
-  fileName: string;
-  filePath: string;
-  format: string;
-  height: number;
-  size: number;
-  width: number;
-};
+export type TransformFn = typeof transform;
 
 export const transform = async (
-  filePath: string,
-  { formats, outputDirectory, widths = [null] }: TransformOptions
+  sourcePath: string,
+  { formats, widths = [null], outputDirectory }: TransformOptions
 ): Promise<TransformResults> => {
   const transformResults: TransformResults = {};
   const shouldWrite = Boolean(outputDirectory);
 
-  const arrayBuffer = await getArrayBuffer(filePath);
+  const arrayBuffer = await getArrayBuffer(sourcePath);
   const initialImage = await sharp(arrayBuffer);
   const { format, width, height } = await sharp(arrayBuffer).metadata();
+  const targetFormat = getFormat(sourcePath, format);
 
   for (const targetWidth of widths) {
     const [newWidth, newHeight] = getImageDimensions(
@@ -49,10 +44,10 @@ export const transform = async (
       await targetImage.resize({ width: newWidth, height: newHeight });
     }
 
-    for (const newFormat of formats || [format]) {
+    for (const newFormat of formats || [targetFormat]) {
       const newImage = await targetImage.clone().toFormat(newFormat);
 
-      const newFileName = `${getFileName(filePath)}-${newWidth}.${newFormat}`;
+      const newFileName = `${getFileName(sourcePath)}-${newWidth}.${newFormat}`;
 
       const newFilePath = shouldWrite
         ? path.join(outputDirectory, newFileName)
@@ -74,6 +69,9 @@ export const transform = async (
         height: newHeight,
         size: newSize,
         width: newWidth,
+        url: shouldWrite
+          ? `./${path.relative(outputDirectory, newFilePath)}`
+          : undefined,
       });
     }
   }

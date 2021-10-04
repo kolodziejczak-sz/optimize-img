@@ -1,4 +1,7 @@
 import { FormatEnum } from 'sharp';
+import path from 'path';
+
+const rootDir = process.cwd();
 
 export type SupportedFormats = keyof FormatEnum;
 
@@ -16,11 +19,11 @@ export type ConfigFn = (existingConfig: Config) => Partial<Config>;
 
 let _config: Config = {
   formats: ['jpeg', 'avif'],
-  outputDirectory: './public',
+  outputDirectory: path.join(rootDir, 'images'),
   widths: [null],
   cacheOptions: {
-    duration: 60_000,
-    directory: '.cache',
+    duration: 8.64e7,
+    directory: path.join(rootDir, '.cache'),
   },
 };
 

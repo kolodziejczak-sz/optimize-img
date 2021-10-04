@@ -9,6 +9,9 @@ const exitEvents = [
 
 export const onProcessExit = (callback: () => void) => {
   exitEvents.forEach((eventName) => {
-    process.on(eventName, callback);
+    process.on(eventName, () => {
+      console.log('onProcessExit');
+      callback();
+    });
   });
 };
